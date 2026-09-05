@@ -1,0 +1,47 @@
+[package]
+name = "iso20022"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "iso20022"
+path = "src/lib.rs"
+
+[[bin]]
+name = "iso20022d"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+axum = "0.7"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+deadpool-postgres = "0.14"
+failsafe = { version = "1.3.0" }
+libxml = "0.3"
+openssl = { version = "0.10", features = ["vendored"] }
+quick-xml = { version = "0.36", features = ["serialize"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "json"] }
+serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+tokio = { version = "1", features = ["full"] }
+tokio-postgres = "0.7"
+tokio-util = "0.7"
+tonic = { version = "0.14", features = ["transport", "codegen", "server"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+rust_decimal = { version = "1", features = ["serde"] }
+validator = { version = "0.18", features = ["derive"] }
+metrics = "0.24"
+metrics-exporter-prometheus = { version = "0.15", default-features = false, features = ["http-listener"] }
+serde_json = "1"
+regex = "1.12.3"
+once_cell = "1.21.4"
+tonic-prost = "0.14"
+prost = { version = "0.14", features = ["derive"] }
+
+[build-dependencies]
+tonic-prost-build = "0.14"
+protoc-bin-vendored = "3"
