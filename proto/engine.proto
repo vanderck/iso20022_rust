@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package engine;
+
+message Empty {}
+
+enum Month {
+    UNDEFINED_MONTH = 0;
+    JANUARY = 1; FEBRUARY = 2; MARCH = 3; APRIL = 4;
+    MAY = 5; JUNE = 6; JULY = 7; AUGUST = 8;
+    SEPTEMBER = 9; OCTOBER = 10; NOVEMBER = 11; DECEMBER = 12;
+}
+
+enum Weekday {
+    UNDEFINED_WEEKDAY = 0;
+    MONDAY = 1; TUESDAY = 2; WEDNESDAY = 3; 
+    THURSDAY = 4; FRIDAY = 5; SATURDAY = 6; SUNDAY = 7;
+}
+
+enum AccountType {
+    UNDEFINED_ACCOUNT_TYPE = 0;
+    LEGAL = 1;
+    NATURAL = 2;
+    VALUTA = 3;
+    SYSTEM = 4;
+}
+
+message UserLimit {
+    string amount = 1;
+    string currency = 2;
+    int64 product = 3;
+    int32 priority = 4;
+}
+
+message Authorisation {
+  int64 transaction = 1;
+  int64 benefactor = 2;
+  int64 beneficiary = 3;
+  int32 validity = 4;
+  bool partial = 5;
+  string amount = 6;
+  string currency = 7;
+  repeated UserLimit limits = 8;
+}
+
+// One leg of an `AuthorisationBatch` - same shape as `Authorisation`'s
+// benefactor/beneficiary/amount, minus the fields every entry in the
+// batch shares (transaction/currency/validity/partial/limits).
+message AuthorisationEntry {
+  int64 benefactor = 1;
+  int64 beneficiary = 2;
+  string amount = 3;
+}
+
+// Posts every entry as one all-or-nothing unit: either all of them commit
+// and settle together under `transaction`, or none of them do. Exists
+// because several legitimate business operations are really *one* logical
+// movement expressed as more than one (benefactor, beneficiary, amount)
+// triple - e.g. a payment collection split across interest and principal,
+// or an early payoff settling both at once - and posting those as
+// separate `authorisation` calls left a real gap: if the second call
+// failed after the first had already committed, a caller retrying with
+// the same idempotency key would recompute its next attempt against
+// state the first call had already changed, silently double-applying
+// part of the first leg. See vanderck/lending's db/ and README history
+// for the concrete bug this closes.
+message AuthorisationBatch {
+  int64 transaction = 1;
+  repeated AuthorisationEntry entries = 2;
+  int32 validity = 3;
+  bool partial = 4;
+  string currency = 5;
+  repeated UserLimit limits = 6;
+}
+
+message Settle {
+  int64 transaction = 1;
+  string amount = 2;
+}
+
+message CreateCredit {
+  int64 balance = 1;
+  int64 valid_from = 2;
+  int64 valid_to = 3;
+  string amount = 4;
+  // When `balance` is 0 (never a real id - core.balances_id_seq starts at
+  // 1), the target account/balance is resolved - or created, if it
+  // doesn't exist yet - from (wallet, product, account_type) instead of
+  // requiring one to already exist. See core.create_credit's doc comment
+  // (db/004_credit_creates_account.sql). Existing callers that always set
+  // `balance` are unaffected - these three are simply never read.
+  int64 wallet = 5;
+  int64 product = 6;
+  AccountType account_type = 7;
+}
+
+message DeleteCredit {
+  int64 credit = 1;
+}
+
+service EngineService {
+    rpc authorisation(Authorisation) returns (Empty) {}
+    rpc authorisation_batch(AuthorisationBatch) returns (Empty) {}
+    rpc settle(Settle) returns (Empty) {}
+    rpc create_credit(CreateCredit) returns (Empty) {}
+    rpc delete_credit(DeleteCredit) returns (Empty) {}
+}

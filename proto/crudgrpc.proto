@@ -1,0 +1,121 @@
+syntax = "proto3";
+package crudgrpc;
+
+message DbPath {
+  string server = 1;
+  string schema = 2;
+  string table = 3;
+}
+
+message Fld {
+  string name = 1;
+  optional string relation = 2;
+  string value = 3;
+}
+
+message Lst {
+  repeated string list = 1; // Used for nullable strings (empty or specific value)
+}
+
+// Responses
+message HostsResponse {
+  repeated string hosts = 1;
+}
+
+message TableInfo {
+  string server = 1;
+  string schema = 2;
+  string table = 3;
+}
+
+message TablesResponse {
+  repeated TableInfo tables = 1;
+}
+
+message DataResponse {
+  repeated Lst data = 1;
+}
+
+message GenericResponse {
+  string message = 1;
+}
+
+// Requests
+message TableRequest {
+  string server_name = 1;
+}
+
+message CreateRequest {
+  string who = 1;
+  optional bool review = 2;
+  DbPath path = 3;
+  repeated Fld data = 4;
+}
+
+message ReadRequest {
+  DbPath path = 1;
+  repeated string column = 2;
+  repeated Fld where_clause = 3;
+  int32 page = 4;
+  optional int32 page_size = 5;
+}
+
+message UpdateRequest {
+  string who = 1;
+  optional bool review = 2;
+  DbPath path = 3;
+  repeated Fld where_clause = 4;
+  repeated Fld data = 5;
+}
+
+message DeleteRequest {
+  string who = 1;
+  optional bool review = 2;
+  DbPath path = 3;
+  repeated Fld where_clause = 4;
+}
+
+message Empty {}
+
+// Maker-checker workflow: requests below let a "checker" resolve a
+// Create/Update/Delete that was submitted with review = true instead of
+// being executed immediately (the "maker" step, already carried by the
+// existing `who` field on those requests).
+message ApproveCommandRequest {
+  int64 command_id = 1;
+  string approved_by = 2;
+}
+
+message RejectCommandRequest {
+  int64 command_id = 1;
+  string rejected_by = 2;
+  string reason = 3;
+}
+
+message PendingCommand {
+  int64 command_id = 1;
+  string action = 2;
+  string db_path = 3;
+  string who = 4;
+  string submitted_at = 5;
+}
+
+message PendingCommandsResponse {
+  repeated PendingCommand commands = 1;
+}
+
+service CrudService {
+  rpc HealthCheck (Empty) returns (GenericResponse);
+  rpc GetHosts (Empty) returns (HostsResponse);
+  rpc GetTables (TableRequest) returns (TablesResponse);
+  rpc GetColumns (DbPath) returns (DataResponse);
+
+  rpc Create (CreateRequest) returns (GenericResponse);
+  rpc Read (ReadRequest) returns (DataResponse);
+  rpc Update (UpdateRequest) returns (GenericResponse);
+  rpc Delete (DeleteRequest) returns (GenericResponse);
+
+  rpc ApproveCommand (ApproveCommandRequest) returns (GenericResponse);
+  rpc RejectCommand (RejectCommandRequest) returns (GenericResponse);
+  rpc GetPendingCommands (Empty) returns (PendingCommandsResponse);
+}

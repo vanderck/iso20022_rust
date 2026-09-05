@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package uidgen;
+
+// A cluster of `uidgen` nodes, each leased a distinct 10-bit worker id
+// (see src/worker_lease.rs), hands out 64-bit ids that are unique across
+// the whole cluster with no coordination needed per call - only at lease
+// acquisition time. IDs fit a signed 64-bit `bigint` column directly
+// (the top bit is always 0), matching the transaction-id columns already
+// used throughout this ecosystem (core.idempotency.transaction,
+// lending.ledger_postings.transaction_id, ...) - adopting this generator
+// needs no schema change anywhere else, just a different id source.
+service UidGenService {
+  // Allocates a single new id. See src/snowflake.rs for the bit layout
+  // and ordering guarantees (monotonically increasing per node, roughly
+  // time-ordered across the cluster - not a strict global total order).
+  rpc NextId(NextIdRequest) returns (NextIdResponse);
+}
+
+message NextIdRequest {}
+
+message NextIdResponse {
+  int64 id = 1;
+}
